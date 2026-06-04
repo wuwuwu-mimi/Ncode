@@ -13,4 +13,33 @@ class CoreStartedEvent(BaseModel):
     version: str
 
 
-Event = Annotated[CoreStartedEvent, Discriminator("type")]
+class LlmTokenEvent(BaseModel):
+    type: Literal["llm.token"] = "llm.token"
+    run_id: str
+    token: str
+    ts: str
+
+
+class LlmUsageEvent(BaseModel):
+    type: Literal["llm.usage"] = "llm.usage"
+    run_id: str
+    input_tokens: int
+    output_tokens: int
+    cache_read_input_tokens: int = 0
+    cache_creation_input_tokens: int = 0
+    context_pct: float = 0.0
+    ts: str
+
+
+class LlmModelSelectedEvent(BaseModel):
+    type: Literal["llm.model_selected"] = "llm.model_selected"
+    run_id: str
+    model: str
+    strategy: str = "static"
+    ts: str
+
+
+Event = Annotated[
+    CoreStartedEvent | LlmUsageEvent | LlmTokenEvent | LlmModelSelectedEvent,
+    Discriminator("type"),
+]
