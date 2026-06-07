@@ -12,7 +12,7 @@ class LLMProvider(Protocol):
 
     async def chat(
         self,
-        message: list[dict[str, object]],
+        messages: list[dict[str, object]],
         tool_schemas: list[dict[str, object]],
         bus: EventBus,
         run_id: str,
