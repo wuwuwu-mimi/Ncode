@@ -5,10 +5,13 @@ import logging
 import signal
 import time
 
+from pathlib import Path
+
 from core.bus.commands import AgentRunCommand, AgentRunResult, PongResult
 from core.bus.events import CoreStartedEvent
 from core.config import CodeConfig, get_config
 from core.events.bus import EventBus
+from core.permissions.manager import PermissionManager
 from core.runner import AgentRunner
 from core.transport.ipc_broadcaster import IpcEventBroadcaster
 from core.transport.socket_server import SocketServer, get_connection_writer
@@ -61,8 +64,15 @@ class CoreApp:
         self._broadcaster = IpcEventBroadcaster()
         self._bus.subscribe(self._broadcaster.handle)
 
+        # 权限管理器（读取 ~/.kama/policy.toml）
+        policy_file = Path("~/.kama/policy.toml").expanduser()
+        permission_manager = PermissionManager(policy_file=policy_file)
+
         # AgentRunner
-        self._runner = AgentRunner(self._config, bus=self._bus)
+        self._runner = AgentRunner(
+            self._config, bus=self._bus,
+            permission_manager=permission_manager,
+        )
 
         # TCP 服务器
         server = SocketServer(

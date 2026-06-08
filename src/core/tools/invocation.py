@@ -22,8 +22,7 @@ from src.core.bus.events import (
 
 
 if TYPE_CHECKING:
-    # from kama_claude.core.permissions.manager import PermissionManager
-    pass
+    from core.permissions.manager import PermissionManager
 
 _DEFAULT_TIMEOUT: float = 120.0
 _MAX_RETRIES: int = 2

@@ -15,6 +15,7 @@ from core.llm.base import LLMProvider
 from core.llm.provider import DeepSeekProvider
 from core.loop import AgentLoop
 from core.memory.loader import load_context_file
+from core.permissions.manager import PermissionManager
 from core.runs import RUNS_DIR, new_run_id
 from core.tools.builtin.bash import BashTool
 from core.tools.builtin.get_time import GetTimeTool
@@ -48,11 +49,13 @@ class AgentRunner:
         bus: EventBus | None = None,
         provider: LLMProvider | None = None,
         runs_dir: Path | None = None,
+        permission_manager: PermissionManager | None = None,
     ) -> None:
         self._config = config
         self._bus = bus or EventBus()
         self._provider = provider
         self._runs_dir = runs_dir or RUNS_DIR
+        self._permission_manager = permission_manager
 
     # 构建工具注册表，注册所有可用工具
     def _build_registry(self) -> ToolRegistry:
@@ -100,7 +103,10 @@ class AgentRunner:
                     self._config.llm.default_model
                 )
                 registry = self._build_registry()
-                loop = AgentLoop(provider, registry, self._bus)
+                loop = AgentLoop(
+                    provider, registry, self._bus,
+                    permission_manager=self._permission_manager,
+                )
                 await loop.run(context)
             except asyncio.CancelledError:
                 cancelled = True

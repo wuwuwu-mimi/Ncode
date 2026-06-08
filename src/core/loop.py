@@ -1,6 +1,7 @@
 from __future__ import annotations
 from datetime import datetime, UTC
 import logging
+from typing import TYPE_CHECKING
 
 from core.bus.events import StepFinishedEvent, StepStartedEvent
 from core.context import ExecutionContext
@@ -9,6 +10,9 @@ from core.llm.base import LLMProvider
 from core.tools.registry import ToolRegistry
 import asyncio
 from core.tools.invocation import invoke_tool
+
+if TYPE_CHECKING:
+    from core.permissions.manager import PermissionManager
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +28,7 @@ class AgentLoop:
         registry: ToolRegistry,
         bus: EventBus,
         *,
-        # permission_manager: PermissionManager | None = None,
+        permission_manager: PermissionManager | None = None,
         # compactor: Compactor | None = None,
         compact_threshold: float = 0.80,
         session_id: str = "",
@@ -32,7 +36,7 @@ class AgentLoop:
         self._provider = provider
         self._registry = registry
         self._bus = bus
-        # self._permission_manager = permission_manager
+        self._permission_manager = permission_manager
         # self._compactor = compactor
         self._compact_threshold = compact_threshold
         self._session_id = session_id
@@ -93,7 +97,7 @@ class AgentLoop:
                         tool_call=tc,
                         bus=self._bus,
                         run_id=context.run_id,
-                        # permission_manager=self._permission_manager,
+                        permission_manager=self._permission_manager,
                         session_id=self._session_id,
                     )
 
