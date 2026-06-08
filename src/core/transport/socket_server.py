@@ -8,6 +8,8 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
+from typing import TYPE_CHECKING
+
 from core.bus.envelope import (
     INTERNAL_ERROR,
     INVALID_REQUEST,
@@ -20,6 +22,9 @@ from core.bus.envelope import (
     make_error,
 )
 from contextvars import ContextVar
+
+if TYPE_CHECKING:
+    from core.transport.ipc_broadcaster import IpcEventBroadcaster
 
 logger = logging.getLogger(__name__)
 type CommandHandler = Callable[[dict[str, Any]], Awaitable[Any]]
@@ -42,15 +47,18 @@ _MAX_LINE_BYTES = 64 * 1024 * 1024  # 64 MB per frame，兼容 MCP 大文件工�
 
 
 class SocketServer:
-    def __init__(self, host: str, port: int) -> None:
-        # TODO broadcaster: IpcEventBroadcaster | None = None,trace: TraceWriter | None = None
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        broadcaster: IpcEventBroadcaster | None = None,
+    ) -> None:
         self._host = host
         self._port = port
         self._handlers: dict[str, CommandHandler] = {}
         self._server: asyncio.AbstractServer | None = None
-        # self._broadcaster = broadcaster
-        # self._trace = trace
-        self._active_writers: set[asyncio.StreamWriter] = set()  # 写入流集合
+        self._broadcaster = broadcaster
+        self._active_writers: set[asyncio.StreamWriter] = set()
 
     def register(self, method: str, handler: CommandHandler) -> None:
         self._handlers[method] = handler
@@ -91,7 +99,8 @@ class SocketServer:
             await self._read_loop(reader, writer)
         finally:
             self._active_writers.discard(writer)
-
+            if self._broadcaster is not None:
+                self._broadcaster.unsubscribe(writer)
             try:
                 writer.close()
             except Exception:
