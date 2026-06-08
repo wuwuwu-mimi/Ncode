@@ -12,6 +12,7 @@ import asyncio
 from core.tools.invocation import invoke_tool
 
 if TYPE_CHECKING:
+    from core.compact.compactor import Compactor
     from core.permissions.manager import PermissionManager
 
 log = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ class AgentLoop:
         bus: EventBus,
         *,
         permission_manager: PermissionManager | None = None,
-        # compactor: Compactor | None = None,
+        compactor: Compactor | None = None,
         compact_threshold: float = 0.80,
         session_id: str = "",
     ) -> None:
@@ -37,7 +38,7 @@ class AgentLoop:
         self._registry = registry
         self._bus = bus
         self._permission_manager = permission_manager
-        # self._compactor = compactor
+        self._compactor = compactor
         self._compact_threshold = compact_threshold
         self._session_id = session_id
 

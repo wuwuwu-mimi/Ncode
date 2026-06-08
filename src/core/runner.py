@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from core.bus.events import RunFinishedEvent, RunStartedEvent
+from core.compact.compactor import Compactor
 from core.config import CodeConfig
 from core.context import ExecutionContext
 from core.events.bus import EventBus
@@ -103,9 +104,17 @@ class AgentRunner:
                     self._config.llm.default_model
                 )
                 registry = self._build_registry()
+                # 创建压缩器（用 run_path 作为 session 目录）
+                compactor = Compactor(
+                    self._bus,
+                    session_dir=run_path,
+                    session_id="",
+                )
                 loop = AgentLoop(
                     provider, registry, self._bus,
                     permission_manager=self._permission_manager,
+                    compactor=compactor,
+                    compact_threshold=self._config.compaction.auto_threshold,
                 )
                 await loop.run(context)
             except asyncio.CancelledError:
