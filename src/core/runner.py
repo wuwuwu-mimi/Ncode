@@ -18,6 +18,9 @@ from core.memory.loader import load_context_file
 from core.runs import RUNS_DIR, new_run_id
 from core.tools.builtin.bash import BashTool
 from core.tools.builtin.get_time import GetTimeTool
+from core.tools.builtin.list_dir import ListDirTool
+from core.tools.builtin.read_file import ReadFileTool
+from core.tools.builtin.write_file import WriteFileTool
 from core.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -56,6 +59,9 @@ class AgentRunner:
         registry = ToolRegistry()
         registry.register(BashTool())
         registry.register(GetTimeTool())
+        registry.register(ReadFileTool())
+        registry.register(WriteFileTool())
+        registry.register(ListDirTool())
         return registry
 
     # 执行 agent run 并返回 RunOutcome（含最终文字结果）

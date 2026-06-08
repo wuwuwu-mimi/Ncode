@@ -1,12 +1,23 @@
+from __future__ import annotations
+
 import asyncio
-from ..base import BaseTool,ToolResult
+
+from pydantic import BaseModel, ConfigDict
+
+from core.tools.base import BaseTool, ToolResult
+
+
+class BashParams(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    command: str
 
 
 class BashTool(BaseTool):
+    params_model = BashParams
     name = "bash"
     description = "Execute a bash command. Returns stdout and stderr."
 
-    input_schema = {
+    input_schema: dict[str, object] = {
         "type": "object",
         "properties": {
             "command": {
@@ -17,10 +28,11 @@ class BashTool(BaseTool):
         "required": ["command"],
     }
 
-    async def invoke(self, params: dict) -> ToolResult:
-        command = params["command"]
+    # 异步执行 shell 命令，捕获 stdout/stderr
+    async def invoke(self, params: dict[str, object]) -> ToolResult:
+        p = BashParams.model_validate(params)
         proc = await asyncio.create_subprocess_shell(
-            command,
+            p.command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
