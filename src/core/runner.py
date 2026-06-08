@@ -110,8 +110,8 @@ class AgentRunner:
         run_path.mkdir(parents=True, exist_ok=True)
 
         # 加载上下文文件
-        global_ctx = load_context_file(Path("~/.kama/context.md").expanduser())
-        project_ctx = load_context_file(Path(".kama/context.md"))
+        global_ctx = load_context_file(Path("~/.wuwu/context.md").expanduser())
+        project_ctx = load_context_file(Path(".wuwu/context.md"))
 
         # 创建执行上下文
         context = ExecutionContext(

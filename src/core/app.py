@@ -83,8 +83,8 @@ class CoreApp:
         self._broadcaster = IpcEventBroadcaster()
         self._bus.subscribe(self._broadcaster.handle)
 
-        # 权限管理器（读取 ~/.kama/policy.toml）
-        policy_file = Path("~/.kama/policy.toml").expanduser()
+        # 权限管理器（读取 ~/.wuwu/policy.toml）
+        policy_file = Path("~/.wuwu/policy.toml").expanduser()
         permission_manager = PermissionManager(policy_file=policy_file)
 
         # AgentRunner（传入 trace 用于包装 LLM provider）
@@ -105,7 +105,7 @@ class CoreApp:
         server.register("event.subscribe", self._subscribe_handler)
 
         addr = await server.start()
-        logger.info("kama-core listening on %s", addr)
+        logger.info("ncode daemon listening on %s", addr)
         logger.info("config: host=%s port=%s model=%s",
                      self._config.host, self._config.port, self._config.llm.default_model)
 
