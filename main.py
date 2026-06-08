@@ -2,66 +2,58 @@ import asyncio
 from dotenv import load_dotenv
 load_dotenv()
 
-from src.core.events.bus import EventBus
-from src.core.llm.provider import DeepSeekProvider
-from src.core.tools.builtin.get_time import GetTimeTool
-from src.core.tools.registry import ToolRegistry
-from src.core.context import ExecutionContext
-from src.core.loop import AgentLoop
+from src.core.app import CoreApp
+from src.core.transport.socket_client import SocketClient
 
 
 async def test():
-    bus = EventBus()
+    # 1. 后台启动 daemon
+    app = CoreApp()
+    daemon_task = asyncio.create_task(app.run())
 
-    # 详细打印事件
-    async def print_event(event):
-        ev = event.model_dump()
-        etype = ev["type"]
-        if etype == "step.started":
-            print(f"\n{'='*50}")
-            print(f"📍 Step {ev['step']} 开始")
-            print(f"{'='*50}")
-        elif etype == "llm.token":
-            print(ev["token"], end="", flush=True)
-        elif etype == "llm.usage":
-            print(f"\n📊 用量: input={ev['input_tokens']} output={ev['output_tokens']}")
-        elif etype == "tool.call_started":
-            print(f"\n🔧 调用工具: {ev['tool_name']}({ev['params']})")
-        elif etype == "tool.call_finished":
-            output = ev.get("output", "")
-            print(f"✅ 工具结果: {output[:200]}")
-        elif etype == "step.finished":
-            print(f"\n✅ Step 完成\n")
+    # 等 daemon 启动
+    await asyncio.sleep(0.3)
+    port = app._config.port
+    print(f"Daemon 已启动: 127.0.0.1:{port}")
 
-    bus.subscribe(print_event)
+    # 2. 客户端连接
+    client = SocketClient("127.0.0.1", port)
 
-    # 注册工具
-    registry = ToolRegistry()
-    registry.register(GetTimeTool())
+    events: list[str] = []
+    async def on_event(ev):
+        events.append(ev["type"])
+        print(f"  ← 事件: {ev['type']}")
 
-    # LLM provider
-    provider = DeepSeekProvider(model="deepseek-v4-flash")
+    client.on_event(on_event)
+    await client.connect()
+    print("客户端已连接")
 
-    # 创建执行上下文
-    context = ExecutionContext(
-        run_id="test-loop-1",
-        goal="当前北京时间是几点几分？今天是几月几号？星期几？",
-        max_steps=5,
-    )
+    loop_task = asyncio.create_task(client.run_event_loop())
 
-    # 创建 AgentLoop 并运行
-    loop = AgentLoop(provider, registry, bus)
-    print(f"🚀 目标: {context.goal}")
-    await loop.run(context)
+    try:
+        # 3. 订阅事件
+        sub = await client.send_command("event.subscribe", {"topics": ["*"]})
+        print(f"订阅: {sub}")
 
-    # 结果
-    print(f"\n{'='*50}")
-    print(f"🏁 运行完成")
-    print(f"   状态: {context.status}")
-    print(f"   步数: {context.step}")
-    print(f"   回答: {context.result}")
-    print(f"   消息数: {len(context.messages)}")
-    print(f"{'='*50}")
+        # 4. 发 ping
+        pong = await client.send_command("core.ping", {"client": "cli-test"})
+        print(f"Ping: {pong}")
+
+        # 5. 发 agent.run
+        print("\n🚀 启动 agent run...")
+        run_result = await client.send_command("agent.run", {
+            "goal": "用一句话介绍你自己"
+        })
+        print(f"Run: {run_result}")
+
+        # 等 agent 跑完（事件会实时推送）
+        await asyncio.sleep(8)
+
+        print(f"\n收到 {len(events)} 个事件: {events}")
+    finally:
+        loop_task.cancel()
+        await client.close()
+        daemon_task.cancel()
 
 
 if __name__ == "__main__":
