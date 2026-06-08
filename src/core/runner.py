@@ -18,6 +18,8 @@ from core.loop import AgentLoop
 from core.memory.loader import load_context_file
 from core.permissions.manager import PermissionManager
 from core.runs import RUNS_DIR, new_run_id
+from core.subagent.registry import BackgroundTaskRegistry
+from core.subagent.tool import AgentResultTool, SpawnAgentTool
 from core.tools.builtin.bash import BashTool
 from core.tools.builtin.get_time import GetTimeTool
 from core.tools.builtin.list_dir import ListDirTool
@@ -57,15 +59,39 @@ class AgentRunner:
         self._provider = provider
         self._runs_dir = runs_dir or RUNS_DIR
         self._permission_manager = permission_manager
+        self._task_registry = BackgroundTaskRegistry()  # 跨 run 共享的子 agent 注册表
 
     # 构建工具注册表，注册所有可用工具
-    def _build_registry(self) -> ToolRegistry:
+    def _build_registry(
+        self,
+        *,
+        provider: LLMProvider | None = None,
+        bus: EventBus | None = None,
+        run_id: str = "",
+        session_id: str = "",
+    ) -> ToolRegistry:
         registry = ToolRegistry()
         registry.register(BashTool())
         registry.register(GetTimeTool())
         registry.register(ReadFileTool())
         registry.register(WriteFileTool())
         registry.register(ListDirTool())
+        # 注入子 Agent 工具（需要 provider + bus）
+        if provider is not None and bus is not None:
+            registry.register(
+                SpawnAgentTool(
+                    provider=provider,
+                    parent_bus=bus,
+                    parent_run_id=run_id,
+                    permission_manager=self._permission_manager,
+                    max_steps=self._config.agent.max_steps,
+                    task_registry=self._task_registry,
+                    runs_dir=self._runs_dir,
+                    session_id=session_id,
+                    depth=0,
+                )
+            )
+            registry.register(AgentResultTool(self._task_registry))
         return registry
 
     # 执行 agent run 并返回 RunOutcome（含最终文字结果）
@@ -103,7 +129,10 @@ class AgentRunner:
                 provider = self._provider or DeepSeekProvider(
                     self._config.llm.default_model
                 )
-                registry = self._build_registry()
+                registry = self._build_registry(
+                    provider=provider, bus=self._bus,
+                    run_id=run_id, session_id="",
+                )
                 # 创建压缩器（用 run_path 作为 session 目录）
                 compactor = Compactor(
                     self._bus,
