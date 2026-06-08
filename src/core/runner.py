@@ -20,6 +20,8 @@ from core.permissions.manager import PermissionManager
 from core.runs import RUNS_DIR, new_run_id
 from core.subagent.registry import BackgroundTaskRegistry
 from core.subagent.tool import AgentResultTool, SpawnAgentTool
+from core.trace.provider import TracingProvider
+from core.trace.writer import TraceWriter
 from core.tools.builtin.bash import BashTool
 from core.tools.builtin.get_time import GetTimeTool
 from core.tools.builtin.list_dir import ListDirTool
@@ -53,12 +55,14 @@ class AgentRunner:
         provider: LLMProvider | None = None,
         runs_dir: Path | None = None,
         permission_manager: PermissionManager | None = None,
+        trace: TraceWriter | None = None,
     ) -> None:
         self._config = config
         self._bus = bus or EventBus()
         self._provider = provider
         self._runs_dir = runs_dir or RUNS_DIR
         self._permission_manager = permission_manager
+        self._trace = trace
         self._task_registry = BackgroundTaskRegistry()  # 跨 run 共享的子 agent 注册表
 
     # 构建工具注册表，注册所有可用工具
@@ -129,6 +133,12 @@ class AgentRunner:
                 provider = self._provider or DeepSeekProvider(
                     self._config.llm.default_model
                 )
+                # 如果有 trace，用 TracingProvider 装饰 LLM 调用
+                if self._trace is not None:
+                    provider = TracingProvider(
+                        provider, self._trace,
+                        include_payload=self._config.trace.include_llm_payload,
+                    )
                 registry = self._build_registry(
                     provider=provider, bus=self._bus,
                     run_id=run_id, session_id="",
