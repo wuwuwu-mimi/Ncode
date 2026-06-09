@@ -1,7 +1,5 @@
 # Ncode — 本地 AI Agent 系统
 
-**AI Agent 系统**，用于学习理解 Agent 的底层架构设计。
-
 ## 快速开始
 
 ```bash
